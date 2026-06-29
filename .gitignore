@@ -1,0 +1,36 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# Matplotlib cache (set via MPLCONFIGDIR in preview workflow)
+.mplconfig/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor / IDE (keep project rules; ignore local state)
+.cursor/*
+!.cursor/rules/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+
+# Large or personal media not needed for the repo
+*.HEIC
+*.heic
+
+# Optional: uncomment to treat generated outputs as build artifacts
+# wyndor_print/output/
