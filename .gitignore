@@ -19,9 +19,11 @@ build/
 .LSOverride
 ._*
 
-# Editor / IDE (keep project rules; ignore local state)
-.cursor/*
-!.cursor/rules/
+# Cursor (local IDE config and rules)
+.cursor/
+
+# Local planning archives
+Markdown History/
 
 # Environment and secrets
 .env

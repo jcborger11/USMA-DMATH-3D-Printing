@@ -26,6 +26,13 @@ cd "/Users/johnb/Documents/Cursor Files/3D Printing/wyndor_print" && python3 -m 
 
 Output files are written to `output/`.
 
+## Input
+
+Reference materials in `input/`:
+
+- **Wyndor_Formulation.pdf** — LP problem statement
+- **example sketch.HEIC** — reference photo (local only; ignored by git)
+
 ## Tweak settings
 
 Edit the constants at the top of `generate_wyndor_stl.py`:

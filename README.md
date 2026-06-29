@@ -11,7 +11,7 @@ Course materials for turning linear programming problems into printable 3D model
 
 ## Reference
 
-- [`Wyndor_Formulation.pdf`](Wyndor_Formulation.pdf) — LP problem statement
+- [`wyndor_print/input/Wyndor_Formulation.pdf`](wyndor_print/input/Wyndor_Formulation.pdf) — LP problem statement
 
 ## Quick start
 
