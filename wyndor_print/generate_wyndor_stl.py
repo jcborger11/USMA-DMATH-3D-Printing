@@ -51,9 +51,27 @@ GROOVE_DEPTH = 0.5
 TEXT_FONT_SIZE = 6.0
 LABEL_INSET_DEPTH = 0.5
 INSET_CLEARANCE = 0.05
-LABEL_OFFSET_LP = 0.12  # offset below contour lines in LP units (~1.8 mm)
-WALL_LABEL_V_FRACTION = 0.18  # vertical position: fraction up from base (not centered)
-CONTOUR_LABEL_MAX_HEIGHT_MM = 2.8
+CONTOUR_LABEL_GAP_MM = 1.5  # min clearance from groove edge to nearest equation glyph
+WALL_LABEL_V_FRACTION = 0.18  # default vertical position: fraction up from base
+WALL_LABEL_HEIGHT_FRAC = 0.22  # default max text height as fraction of local wall height
+CONTOUR_LABEL_FONT_SIZE = 8.0
+CONTOUR_LABEL_INSET_DEPTH = 0.8
+CONTOUR_LABEL_MAX_HEIGHT_MM = 3.7
+
+# Per-contour label placement (defaults: chord_fraction=0.5 along p0→p1).
+CONTOUR_LABEL_OVERRIDES: dict[float, dict[str, float]] = {
+    1200: {"chord_fraction": 0.54},  # balance: keep 300 and = 1200 on top face
+}
+
+# Per-edge wall label placement (defaults: h_fraction=0.5, v_fraction=WALL_LABEL_V_FRACTION).
+WALL_LABEL_OVERRIDES: dict[str, dict[str, float]] = {
+    "x₁ ≥ 0": {"v_fraction": 0.26},
+    "x₂ ≥ 0": {
+        "h_fraction": 0.72,
+        "v_fraction": 0.40,
+        "max_height_mm": 5.5,
+    },
+}
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 BOOLEAN_ENGINE = "manifold"
@@ -132,16 +150,26 @@ def flip_text_180(
     return -x_axis, -y_axis
 
 
+def wall_label_settings(label: str) -> dict[str, float]:
+    overrides = WALL_LABEL_OVERRIDES.get(label, {})
+    return {
+        "h_fraction": overrides.get("h_fraction", 0.5),
+        "v_fraction": overrides.get("v_fraction", WALL_LABEL_V_FRACTION),
+        "max_height_mm": overrides.get("max_height_mm", -1.0),
+    }
+
+
 def create_text_volume(
     text: str,
     depth: float,
     xy_buffer: float = 0.0,
+    font_size: float = TEXT_FONT_SIZE,
 ) -> trimesh.Trimesh:
     """Extrude text from local z=0 into +Z by depth (anchored on the opening face)."""
     path = TextPath(
         (0, 0),
         text,
-        prop=FontProperties(family="DejaVu Sans", size=TEXT_FONT_SIZE),
+        prop=FontProperties(family="DejaVu Sans", size=font_size),
     )
     parts: list[trimesh.Trimesh] = []
     for poly in path.to_polygons():
@@ -313,25 +341,45 @@ def clip_contour_to_polygon(k: float) -> list[tuple[np.ndarray, np.ndarray]]:
     return [best_pair]
 
 
-def contour_label_offset_lp(p0_lp: np.ndarray, p1_lp: np.ndarray) -> np.ndarray:
-    """LP-space point just below the contour chord (toward lower objective)."""
-    mid = (p0_lp + p1_lp) / 2.0
+def contour_label_settings(k: float) -> dict[str, float]:
+    overrides = CONTOUR_LABEL_OVERRIDES.get(k, {})
+    return {
+        "chord_fraction": overrides.get("chord_fraction", 0.5),
+    }
+
+
+def contour_label_offset_lp(
+    k: float,
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+) -> np.ndarray:
+    """LP-space point below the contour chord (toward lower objective), clearing groove + text."""
+    settings = contour_label_settings(k)
+    offset_lp = (
+        RIDGE_WIDTH / 2.0 + CONTOUR_LABEL_GAP_MM + CONTOUR_LABEL_MAX_HEIGHT_MM / 2.0
+    ) / SCALE_XY
+    base_lp = p0_lp + settings["chord_fraction"] * (p1_lp - p0_lp)
     chord = p1_lp - p0_lp
     length = np.linalg.norm(chord)
     if length < 1e-9:
-        return mid
+        return base_lp
     perp = np.array([-chord[1], chord[0]]) / length
     gradient = np.array([OBJ_A, OBJ_B])
     if np.dot(perp, gradient) > 0:
         perp = -perp
-    return mid + perp * LABEL_OFFSET_LP
+    return base_lp + perp * offset_lp
 
 
 def wall_label_transform(
     p0_lp: np.ndarray,
     p1_lp: np.ndarray,
+    label: str,
 ) -> np.ndarray:
     """4x4 transform: local +Z points into the body from the exterior wall face."""
+    settings = wall_label_settings(label)
+    h_fraction = settings["h_fraction"]
+    v_fraction = settings["v_fraction"]
+
     z0 = objective(p0_lp[0], p0_lp[1])
     z1 = objective(p1_lp[0], p1_lp[1])
 
@@ -352,22 +400,37 @@ def wall_label_transform(
     y_axis = np.array([0.0, 0.0, 1.0])
     z_axis = -outward
 
-    bottom_mid = 0.5 * (bl + br)
-    top_mid = 0.5 * (tl + tr)
-    origin = bottom_mid + WALL_LABEL_V_FRACTION * (top_mid - bottom_mid)
+    anchor_bottom = bl + h_fraction * (br - bl)
+    anchor_top = tl + h_fraction * (tr - tl)
+    origin = anchor_bottom + v_fraction * (anchor_top - anchor_bottom)
     return make_transform(origin, x_axis, y_axis, z_axis)
 
 
-def wall_label_max_size(p0_lp: np.ndarray, p1_lp: np.ndarray) -> tuple[float, float]:
+def wall_label_max_size(
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+    label: str,
+) -> tuple[float, float]:
+    settings = wall_label_settings(label)
+    h_fraction = settings["h_fraction"]
+
     z0 = objective(p0_lp[0], p0_lp[1])
     z1 = objective(p1_lp[0], p1_lp[1])
     bl = to_mm(p0_lp[0], p0_lp[1], 0.0)
     br = to_mm(p1_lp[0], p1_lp[1], 0.0)
     tl = to_mm(p0_lp[0], p0_lp[1], z0)
     tr = to_mm(p1_lp[0], p1_lp[1], z1)
+
+    anchor_bottom = bl + h_fraction * (br - bl)
+    anchor_top = tl + h_fraction * (tr - tl)
+    local_height = np.linalg.norm(anchor_top - anchor_bottom)
     wall_width = np.linalg.norm(br - bl)
-    wall_height = max(np.linalg.norm(tl - bl), np.linalg.norm(tr - br))
-    return wall_width * 0.85, wall_height * 0.22
+
+    if settings["max_height_mm"] > 0:
+        max_h = settings["max_height_mm"]
+    else:
+        max_h = local_height * WALL_LABEL_HEIGHT_FRAC
+    return wall_width * 0.85, max_h
 
 
 def build_wall_label_pair(
@@ -375,8 +438,8 @@ def build_wall_label_pair(
     p1_lp: np.ndarray,
     label: str,
 ) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
-    transform = wall_label_transform(p0_lp, p1_lp)
-    max_w, max_h = wall_label_max_size(p0_lp, p1_lp)
+    transform = wall_label_transform(p0_lp, p1_lp, label)
+    max_w, max_h = wall_label_max_size(p0_lp, p1_lp, label)
 
     fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
     cavity_local = fit_text_mesh(
@@ -411,7 +474,7 @@ def contour_label_transform(
     x_axis_3d = x_axis_3d / np.linalg.norm(x_axis_3d)
     x_axis_3d, y_axis = flip_text_180(x_axis_3d, y_axis)
 
-    anchor_lp = contour_label_offset_lp(p0_lp, p1_lp)
+    anchor_lp = contour_label_offset_lp(k, p0_lp, p1_lp)
     origin = lp_to_top_point(anchor_lp)
     return make_transform(origin, x_axis_3d, y_axis, -outward)
 
@@ -434,12 +497,21 @@ def build_contour_label_pair(
         return empty, empty
 
     max_w, max_h = contour_label_max_size(p0_lp, p1_lp)
-    fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
+    fill_local = fit_text_mesh(
+        create_text_volume(
+            label,
+            CONTOUR_LABEL_INSET_DEPTH,
+            font_size=CONTOUR_LABEL_FONT_SIZE,
+        ),
+        max_w,
+        max_h,
+    )
     cavity_local = fit_text_mesh(
         create_text_volume(
             label,
-            LABEL_INSET_DEPTH + INSET_CLEARANCE,
+            CONTOUR_LABEL_INSET_DEPTH + INSET_CLEARANCE,
             xy_buffer=INSET_CLEARANCE / 2.0,
+            font_size=CONTOUR_LABEL_FONT_SIZE,
         ),
         max_w,
         max_h,
@@ -579,7 +651,7 @@ def main() -> None:
     size = bounds[1] - bounds[0]
     print(f"\nBody dimensions (mm): X={size[0]:.1f}, Y={size[1]:.1f}, Z={size[2]:.1f}")
     print(f"Contour levels included: {CONTOUR_LEVELS}")
-    print(f"Inset depths: grooves={GROOVE_DEPTH} mm, labels={LABEL_INSET_DEPTH} mm")
+    print(f"Inset depths: grooves={GROOVE_DEPTH} mm, wall labels={LABEL_INSET_DEPTH} mm, contour labels={CONTOUR_LABEL_INSET_DEPTH} mm")
     print(f"\nExported:\n  {body_path}\n  {accents_path}")
 
 

@@ -46,8 +46,13 @@ Edit the constants at the top of `generate_wyndor_stl.py`:
 | `MAX_Z_MM` | 30.0 | Max model height in mm |
 | `RIDGE_WIDTH` | 1.0 | Iso-profit groove width (mm) |
 | `GROOVE_DEPTH` | 0.5 | Depth contour channels are cut into the top surface (mm) |
-| `LABEL_INSET_DEPTH` | 0.5 | Depth text cavities extend into body walls and top (mm) |
+| `LABEL_INSET_DEPTH` | 0.5 | Depth side-wall text cavities extend into body (mm) |
+| `CONTOUR_LABEL_FONT_SIZE` | 8.0 | Top objective equation font size |
+| `CONTOUR_LABEL_INSET_DEPTH` | 0.8 | Depth top equation cavities extend into body (mm) |
+| `CONTOUR_LABEL_MAX_HEIGHT_MM` | 3.7 | Max height for fitted top equation text (mm) |
+| `CONTOUR_LABEL_GAP_MM` | 1.5 | Clearance between groove edge and equation text (mm) |
 | `INSET_CLEARANCE` | 0.05 | Extra cutter depth/width so accent fills seat cleanly (mm) |
+| `WALL_LABEL_OVERRIDES` | see script | Per-edge placement tweaks (`x₁ ≥ 0`, `x₂ ≥ 0`, etc.) |
 | `CONTOUR_LEVELS` | 1200, 2000, 2700 | Iso-profit lines on the top surface |
 
 ## Bambu Studio workflow
