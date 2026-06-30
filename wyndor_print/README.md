@@ -2,13 +2,23 @@
 
 Generates two aligned STL files for a two-color AMS print of the Wyndor Glass Co. linear programming problem:
 
-- **wyndor_body.stl** — solid feasible region with sloped objective-function top (Filament 1)
-- **wyndor_accents.stl** — boundary ridges on the sides and iso-profit contour lines on top (Filament 2)
+- **wyndor_body.stl** — solid feasible region with sloped objective-function top, plus cavities cut for inlays (Filament 1)
+- **wyndor_accents.stl** — inlay fills for iso-profit grooves, objective labels, and side-wall constraint labels (Filament 2)
+
+Accent geometry is **inset into the body** (not raised on top), so FDM layers have solid support underneath every label and groove.
+
+## Generate STLs
+
+```bash
+cd wyndor_print && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python generate_wyndor_stl.py
+```
+
+Output files are written to `output/`.
 
 ## Preview (without Bambu Studio)
 
 ```bash
-cd "/Users/johnb/Documents/Cursor Files/3D Printing/wyndor_print" && .venv/bin/python preview.py
+cd wyndor_print && .venv/bin/python preview.py
 ```
 
 Writes `output/preview.png` (three views: isometric, front, side).
@@ -16,15 +26,8 @@ Writes `output/preview.png` (three views: isometric, front, side).
 Interactive rotatable window:
 
 ```bash
-.venv/bin/pip install "pyglet<2" && .venv/bin/python preview.py --interactive
+cd wyndor_print && .venv/bin/pip install "pyglet<2" && .venv/bin/python preview.py --interactive
 ```
-
-
-```bash
-cd "/Users/johnb/Documents/Cursor Files/3D Printing/wyndor_print" && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python generate_wyndor_stl.py
-```
-
-Output files are written to `output/`.
 
 ## Input
 
@@ -41,9 +44,11 @@ Edit the constants at the top of `generate_wyndor_stl.py`:
 |---|---|---|
 | `SCALE_XY` | 15.0 | LP units → mm (footprint ≈ 60 × 90 mm) |
 | `MAX_Z_MM` | 30.0 | Max model height in mm |
-| `RIDGE_WIDTH` | 1.0 | Accent line thickness (mm) |
-| `RIDGE_HEIGHT` | 0.5 | How far accents protrude (mm) |
-| `CONTOUR_LEVELS` | 600 … 3600 | Iso-profit lines on the top surface |
+| `RIDGE_WIDTH` | 1.0 | Iso-profit groove width (mm) |
+| `GROOVE_DEPTH` | 0.5 | Depth contour channels are cut into the top surface (mm) |
+| `LABEL_INSET_DEPTH` | 0.5 | Depth text cavities extend into body walls and top (mm) |
+| `INSET_CLEARANCE` | 0.05 | Extra cutter depth/width so accent fills seat cleanly (mm) |
+| `CONTOUR_LEVELS` | 1200, 2000, 2700 | Iso-profit lines on the top surface |
 
 ## Bambu Studio workflow
 

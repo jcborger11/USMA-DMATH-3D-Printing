@@ -3,3 +3,4 @@ trimesh>=4.0
 matplotlib>=3.7
 shapely>=2.0
 mapbox-earcut>=1.0
+manifold3d>=2.5

@@ -45,16 +45,18 @@ SCALE_XY = 15.0  # 1 LP unit = 15 mm → 60 x 90 mm footprint
 MAX_Z_MM = 30.0
 Z_SCALE = MAX_Z_MM / 3600.0
 
-# Accent geometry (millimeters).
+# Inset accent geometry (millimeters).
 RIDGE_WIDTH = 1.0
-RIDGE_HEIGHT = 0.5
+GROOVE_DEPTH = 0.5
 TEXT_FONT_SIZE = 6.0
-TEXT_DEPTH = 0.5
+LABEL_INSET_DEPTH = 0.5
+INSET_CLEARANCE = 0.05
 LABEL_OFFSET_LP = 0.12  # offset below contour lines in LP units (~1.8 mm)
 WALL_LABEL_V_FRACTION = 0.18  # vertical position: fraction up from base (not centered)
 CONTOUR_LABEL_MAX_HEIGHT_MM = 2.8
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+BOOLEAN_ENGINE = "manifold"
 
 
 def objective(x1: float, x2: float) -> float:
@@ -130,8 +132,12 @@ def flip_text_180(
     return -x_axis, -y_axis
 
 
-def create_text_mesh(text: str) -> trimesh.Trimesh:
-    """Extrude matplotlib text glyphs into a 3D mesh (local XY plane, +Z depth)."""
+def create_text_volume(
+    text: str,
+    depth: float,
+    xy_buffer: float = 0.0,
+) -> trimesh.Trimesh:
+    """Extrude text from local z=0 into +Z by depth (anchored on the opening face)."""
     path = TextPath(
         (0, 0),
         text,
@@ -146,11 +152,18 @@ def create_text_mesh(text: str) -> trimesh.Trimesh:
             continue
         if not polygon.is_valid:
             polygon = polygon.buffer(0)
-        parts.append(trimesh.creation.extrude_polygon(polygon, height=TEXT_DEPTH))
+        if xy_buffer > 0.0:
+            polygon = polygon.buffer(xy_buffer)
+            if polygon.is_empty:
+                continue
+            if polygon.geom_type == "MultiPolygon":
+                polygon = max(polygon.geoms, key=lambda g: g.area)
+        parts.append(trimesh.creation.extrude_polygon(polygon, height=depth))
     if not parts:
         raise ValueError(f"Could not generate text geometry for: {text!r}")
     mesh = trimesh.util.concatenate(parts)
-    mesh.apply_translation(-mesh.centroid)
+    center_xy = 0.5 * (mesh.bounds[0, :2] + mesh.bounds[1, :2])
+    mesh.apply_translation([-center_xy[0], -center_xy[1], -mesh.bounds[0, 2]])
     return mesh
 
 
@@ -164,7 +177,8 @@ def fit_text_mesh(
         return mesh
     scale = min(max_width / size[0], max_height / size[1], 1.0)
     mesh.apply_scale(scale)
-    mesh.apply_translation(-mesh.centroid)
+    center_xy = 0.5 * (mesh.bounds[0, :2] + mesh.bounds[1, :2])
+    mesh.apply_translation([-center_xy[0], -center_xy[1], -mesh.bounds[0, 2]])
     return mesh
 
 
@@ -180,7 +194,36 @@ def lp_to_top_point(lp: np.ndarray) -> np.ndarray:
     return to_mm(lp[0], lp[1], z)
 
 
-def build_body_mesh() -> trimesh.Trimesh:
+def apply_transform(mesh: trimesh.Trimesh, matrix: np.ndarray) -> trimesh.Trimesh:
+    result = mesh.copy()
+    result.apply_transform(matrix)
+    return result
+
+
+def prepare_for_boolean(mesh: trimesh.Trimesh, merge: bool = True) -> trimesh.Trimesh:
+    result = mesh.copy()
+    if merge:
+        result.merge_vertices()
+    result.fix_normals()
+    return result
+
+
+def boolean_union(meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh:
+    prepared = [prepare_for_boolean(mesh) for mesh in meshes]
+    if len(prepared) == 1:
+        return prepared[0]
+    return trimesh.boolean.union(prepared, engine=BOOLEAN_ENGINE)
+
+
+def boolean_difference(base: trimesh.Trimesh, cutters: trimesh.Trimesh) -> trimesh.Trimesh:
+    return trimesh.boolean.difference(
+        [prepare_for_boolean(base, merge=False), prepare_for_boolean(cutters)],
+        engine=BOOLEAN_ENGINE,
+        check_volume=False,
+    )
+
+
+def build_base_polyhedron() -> trimesh.Trimesh:
     """Watertight solid: base, sloped top, and vertical side walls."""
     lp_verts = FEASIBLE_VERTICES
     n = len(lp_verts)
@@ -209,28 +252,6 @@ def build_body_mesh() -> trimesh.Trimesh:
         faces=np.asarray(faces, dtype=int),
         process=False,
     )
-
-
-def add_quad_faces(
-    faces: list[list[int]],
-    i0: int,
-    i1: int,
-    i2: int,
-    i3: int,
-) -> None:
-    faces.append([i0, i1, i2])
-    faces.append([i0, i2, i3])
-
-
-def append_vertices(
-    vertices: list[np.ndarray],
-    points: list[np.ndarray],
-) -> list[int]:
-    indices = []
-    for p in points:
-        vertices.append(p)
-        indices.append(len(vertices) - 1)
-    return indices
 
 
 def segment_plane_intersection(
@@ -292,52 +313,6 @@ def clip_contour_to_polygon(k: float) -> list[tuple[np.ndarray, np.ndarray]]:
     return [best_pair]
 
 
-def build_contour_ridge_indices(
-    p0_lp: np.ndarray,
-    p1_lp: np.ndarray,
-    vertices: list[np.ndarray],
-    faces: list[list[int]],
-) -> None:
-    """Raised strip along an iso-profit line on the top surface."""
-    z0 = objective(p0_lp[0], p0_lp[1])
-    z1 = objective(p1_lp[0], p1_lp[1])
-
-    base0 = to_mm(p0_lp[0], p0_lp[1], z0)
-    base1 = to_mm(p1_lp[0], p1_lp[1], z1)
-    up = np.array([0.0, 0.0, RIDGE_HEIGHT])
-    top0 = base0 + up
-    top1 = base1 + up
-
-    seg = top1 - top0
-    seg_len = np.linalg.norm(seg)
-    if seg_len < 1e-6:
-        return
-
-    seg_dir = seg / seg_len
-    perp = np.cross(seg_dir, [0.0, 0.0, 1.0])
-    if np.linalg.norm(perp) < 1e-9:
-        perp = np.array([0.0, 1.0, 0.0])
-    perp = perp / np.linalg.norm(perp) * (RIDGE_WIDTH / 2.0)
-
-    points = [
-        base0 - perp,
-        base0 + perp,
-        base1 + perp,
-        base1 - perp,
-        top0 - perp,
-        top0 + perp,
-        top1 + perp,
-        top1 - perp,
-    ]
-    b0l, b0r, b1r, b1l, t0l, t0r, t1r, t1l = append_vertices(vertices, points)
-
-    add_quad_faces(faces, b0l, b1l, t1l, t0l)
-    add_quad_faces(faces, b0r, t0r, t1r, b1r)
-    add_quad_faces(faces, b0l, t0l, t0r, b0r)
-    add_quad_faces(faces, b1l, b1r, t1r, t1l)
-    add_quad_faces(faces, t0l, t1l, t1r, t0r)
-
-
 def contour_label_offset_lp(p0_lp: np.ndarray, p1_lp: np.ndarray) -> np.ndarray:
     """LP-space point just below the contour chord (toward lower objective)."""
     mid = (p0_lp + p1_lp) / 2.0
@@ -352,44 +327,11 @@ def contour_label_offset_lp(p0_lp: np.ndarray, p1_lp: np.ndarray) -> np.ndarray:
     return mid + perp * LABEL_OFFSET_LP
 
 
-def build_contour_label_mesh(k: float, p0_lp: np.ndarray, p1_lp: np.ndarray) -> trimesh.Trimesh:
-    """Etched objective equation label on the top face below a contour line."""
-    label = f"{OBJECTIVE_LHS} = {k}"
-    text = create_text_mesh(label)
-
-    chord_mm = (lp_to_top_point(p1_lp) - lp_to_top_point(p0_lp))[:2]
-    chord_len_mm = np.linalg.norm(chord_mm)
-    x_axis_3d = lp_to_top_point(p1_lp) - lp_to_top_point(p0_lp)
-    if np.linalg.norm(x_axis_3d) < 1e-9:
-        return text
-    x_axis_3d = x_axis_3d / np.linalg.norm(x_axis_3d)
-
-    z_axis = top_surface_normal_mm()
-    y_axis = np.cross(z_axis, x_axis_3d)
-    if np.linalg.norm(y_axis) < 1e-9:
-        y_axis = np.array([0.0, 1.0, 0.0])
-    y_axis = y_axis / np.linalg.norm(y_axis)
-    x_axis_3d = np.cross(y_axis, z_axis)
-    x_axis_3d = x_axis_3d / np.linalg.norm(x_axis_3d)
-    x_axis_3d, y_axis = flip_text_180(x_axis_3d, y_axis)
-
-    text = fit_text_mesh(text, max_width=chord_len_mm * 0.9, max_height=CONTOUR_LABEL_MAX_HEIGHT_MM)
-
-    anchor_lp = contour_label_offset_lp(p0_lp, p1_lp)
-    origin = lp_to_top_point(anchor_lp) + z_axis * RIDGE_HEIGHT
-
-    text.apply_transform(
-        make_transform(origin, x_axis_3d, y_axis, z_axis)
-    )
-    return text
-
-
-def build_wall_label_mesh(
+def wall_label_transform(
     p0_lp: np.ndarray,
     p1_lp: np.ndarray,
-    label: str,
-) -> trimesh.Trimesh:
-    """Etched constraint label on the exterior of a vertical side wall."""
+) -> np.ndarray:
+    """4x4 transform: local +Z points into the body from the exterior wall face."""
     z0 = objective(p0_lp[0], p0_lp[1])
     z1 = objective(p1_lp[0], p1_lp[1])
 
@@ -404,58 +346,209 @@ def build_wall_label_mesh(
         raise ValueError("Degenerate wall edge.")
     x_axis = x_axis / wall_width
 
-    z_axis = np.array([outward_normal_2d(p0_lp, p1_lp)[0], outward_normal_2d(p0_lp, p1_lp)[1], 0.0])
+    outward = np.array(
+        [outward_normal_2d(p0_lp, p1_lp)[0], outward_normal_2d(p0_lp, p1_lp)[1], 0.0]
+    )
     y_axis = np.array([0.0, 0.0, 1.0])
-
-    wall_height = max(np.linalg.norm(tl - bl), np.linalg.norm(tr - br))
-    text = create_text_mesh(label)
-    text = fit_text_mesh(text, max_width=wall_width * 0.85, max_height=wall_height * 0.22)
+    z_axis = -outward
 
     bottom_mid = 0.5 * (bl + br)
     top_mid = 0.5 * (tl + tr)
-    origin = bottom_mid + WALL_LABEL_V_FRACTION * (top_mid - bottom_mid) + z_axis * TEXT_DEPTH
-    text.apply_transform(make_transform(origin, x_axis, y_axis, z_axis))
-    return text
+    origin = bottom_mid + WALL_LABEL_V_FRACTION * (top_mid - bottom_mid)
+    return make_transform(origin, x_axis, y_axis, z_axis)
 
 
-def mesh_to_indexed_parts(
-    mesh: trimesh.Trimesh,
-    vertices: list[np.ndarray],
-    faces: list[list[int]],
-) -> None:
-    base = len(vertices)
-    for vertex in mesh.vertices:
-        vertices.append(vertex)
-    for face in mesh.faces:
-        faces.append([base + i for i in face])
+def wall_label_max_size(p0_lp: np.ndarray, p1_lp: np.ndarray) -> tuple[float, float]:
+    z0 = objective(p0_lp[0], p0_lp[1])
+    z1 = objective(p1_lp[0], p1_lp[1])
+    bl = to_mm(p0_lp[0], p0_lp[1], 0.0)
+    br = to_mm(p1_lp[0], p1_lp[1], 0.0)
+    tl = to_mm(p0_lp[0], p0_lp[1], z0)
+    tr = to_mm(p1_lp[0], p1_lp[1], z1)
+    wall_width = np.linalg.norm(br - bl)
+    wall_height = max(np.linalg.norm(tl - bl), np.linalg.norm(tr - br))
+    return wall_width * 0.85, wall_height * 0.22
 
 
-def build_accent_mesh() -> trimesh.Trimesh:
-    """Top contour ridges, objective labels, and etched wall constraint labels."""
-    vertices: list[np.ndarray] = []
-    faces: list[list[int]] = []
+def build_wall_label_pair(
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+    label: str,
+) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
+    transform = wall_label_transform(p0_lp, p1_lp)
+    max_w, max_h = wall_label_max_size(p0_lp, p1_lp)
+
+    fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
+    cavity_local = fit_text_mesh(
+        create_text_volume(
+            label,
+            LABEL_INSET_DEPTH + INSET_CLEARANCE,
+            xy_buffer=INSET_CLEARANCE / 2.0,
+        ),
+        max_w,
+        max_h,
+    )
+    return apply_transform(cavity_local, transform), apply_transform(fill_local, transform)
+
+
+def contour_label_transform(
+    k: float,
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+) -> np.ndarray | None:
+    """4x4 transform: local +Z points into the body from the top surface."""
+    x_axis_3d = lp_to_top_point(p1_lp) - lp_to_top_point(p0_lp)
+    if np.linalg.norm(x_axis_3d) < 1e-9:
+        return None
+
+    x_axis_3d = x_axis_3d / np.linalg.norm(x_axis_3d)
+    outward = top_surface_normal_mm()
+    y_axis = np.cross(outward, x_axis_3d)
+    if np.linalg.norm(y_axis) < 1e-9:
+        y_axis = np.array([0.0, 1.0, 0.0])
+    y_axis = y_axis / np.linalg.norm(y_axis)
+    x_axis_3d = np.cross(y_axis, outward)
+    x_axis_3d = x_axis_3d / np.linalg.norm(x_axis_3d)
+    x_axis_3d, y_axis = flip_text_180(x_axis_3d, y_axis)
+
+    anchor_lp = contour_label_offset_lp(p0_lp, p1_lp)
+    origin = lp_to_top_point(anchor_lp)
+    return make_transform(origin, x_axis_3d, y_axis, -outward)
+
+
+def contour_label_max_size(p0_lp: np.ndarray, p1_lp: np.ndarray) -> tuple[float, float]:
+    chord_mm = (lp_to_top_point(p1_lp) - lp_to_top_point(p0_lp))[:2]
+    chord_len_mm = np.linalg.norm(chord_mm)
+    return chord_len_mm * 0.9, CONTOUR_LABEL_MAX_HEIGHT_MM
+
+
+def build_contour_label_pair(
+    k: float,
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
+    label = f"{OBJECTIVE_LHS} = {k}"
+    transform = contour_label_transform(k, p0_lp, p1_lp)
+    if transform is None:
+        empty = trimesh.Trimesh()
+        return empty, empty
+
+    max_w, max_h = contour_label_max_size(p0_lp, p1_lp)
+    fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
+    cavity_local = fit_text_mesh(
+        create_text_volume(
+            label,
+            LABEL_INSET_DEPTH + INSET_CLEARANCE,
+            xy_buffer=INSET_CLEARANCE / 2.0,
+        ),
+        max_w,
+        max_h,
+    )
+    return apply_transform(cavity_local, transform), apply_transform(fill_local, transform)
+
+
+def build_contour_groove_mesh(p0_lp: np.ndarray, p1_lp: np.ndarray, depth: float) -> trimesh.Trimesh:
+    """Vertical groove strip on the top surface, extruded downward into the body."""
+    z0 = objective(p0_lp[0], p0_lp[1])
+    z1 = objective(p1_lp[0], p1_lp[1])
+
+    top0 = to_mm(p0_lp[0], p0_lp[1], z0)
+    top1 = to_mm(p1_lp[0], p1_lp[1], z1)
+    down = np.array([0.0, 0.0, -depth])
+    bottom0 = top0 + down
+    bottom1 = top1 + down
+
+    seg = top1 - top0
+    seg_len = np.linalg.norm(seg)
+    if seg_len < 1e-6:
+        return trimesh.Trimesh()
+
+    seg_dir = seg / seg_len
+    perp = np.cross(seg_dir, [0.0, 0.0, 1.0])
+    if np.linalg.norm(perp) < 1e-9:
+        perp = np.array([0.0, 1.0, 0.0])
+    perp = perp / np.linalg.norm(perp) * (RIDGE_WIDTH / 2.0)
+
+    vertices = np.array(
+        [
+            top0 - perp,
+            top0 + perp,
+            top1 + perp,
+            top1 - perp,
+            bottom0 - perp,
+            bottom0 + perp,
+            bottom1 + perp,
+            bottom1 - perp,
+        ],
+        dtype=float,
+    )
+    faces = np.array(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+            [4, 6, 5],
+            [4, 7, 6],
+            [0, 4, 5],
+            [0, 5, 1],
+            [1, 5, 6],
+            [1, 6, 2],
+            [2, 6, 7],
+            [2, 7, 3],
+            [3, 7, 4],
+            [3, 4, 0],
+        ],
+        dtype=int,
+    )
+    return trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+
+
+def build_contour_groove_pair(
+    p0_lp: np.ndarray,
+    p1_lp: np.ndarray,
+) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
+    cavity = build_contour_groove_mesh(p0_lp, p1_lp, GROOVE_DEPTH + INSET_CLEARANCE)
+    fill = build_contour_groove_mesh(p0_lp, p1_lp, GROOVE_DEPTH)
+    return cavity, fill
+
+
+def collect_inset_parts() -> tuple[list[trimesh.Trimesh], list[trimesh.Trimesh]]:
+    cavities: list[trimesh.Trimesh] = []
+    fills: list[trimesh.Trimesh] = []
 
     for level in CONTOUR_LEVELS:
         for p0, p1 in clip_contour_to_polygon(level):
-            build_contour_ridge_indices(p0, p1, vertices, faces)
-            label_mesh = build_contour_label_mesh(level, p0, p1)
-            mesh_to_indexed_parts(label_mesh, vertices, faces)
+            cavity, fill = build_contour_groove_pair(p0, p1)
+            if len(cavity.vertices) > 0:
+                cavities.append(cavity)
+                fills.append(fill)
+            cavity, fill = build_contour_label_pair(level, p0, p1)
+            if len(cavity.vertices) > 0:
+                cavities.append(cavity)
+                fills.append(fill)
 
     n = len(FEASIBLE_VERTICES)
     for i in range(n):
         p0 = FEASIBLE_VERTICES[i]
         p1 = FEASIBLE_VERTICES[(i + 1) % n]
-        label_mesh = build_wall_label_mesh(p0, p1, EDGE_CONSTRAINT_LABELS[i])
-        mesh_to_indexed_parts(label_mesh, vertices, faces)
+        cavity, fill = build_wall_label_pair(p0, p1, EDGE_CONSTRAINT_LABELS[i])
+        cavities.append(cavity)
+        fills.append(fill)
 
-    if not vertices:
-        raise RuntimeError("Accent mesh has no geometry.")
+    if not cavities:
+        raise RuntimeError("No inset accent geometry generated.")
+    return cavities, fills
 
-    return trimesh.Trimesh(
-        vertices=np.asarray(vertices, dtype=float),
-        faces=np.asarray(faces, dtype=int),
-        process=False,
-    )
+
+def build_body_mesh(cavities: list[trimesh.Trimesh]) -> trimesh.Trimesh:
+    """Watertight body with grooves and label cavities cut in for accent inlays."""
+    base = build_base_polyhedron()
+    cutters = boolean_union(cavities)
+    return boolean_difference(base, cutters)
+
+
+def build_accent_mesh(fills: list[trimesh.Trimesh]) -> trimesh.Trimesh:
+    """Inlay fills for contour grooves, objective labels, and wall constraint labels."""
+    return trimesh.util.concatenate(fills)
 
 
 def validate_mesh(mesh: trimesh.Trimesh, name: str, require_watertight: bool) -> None:
@@ -469,8 +562,9 @@ def validate_mesh(mesh: trimesh.Trimesh, name: str, require_watertight: bool) ->
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    body = build_body_mesh()
-    accents = build_accent_mesh()
+    cavities, fills = collect_inset_parts()
+    body = build_body_mesh(cavities)
+    accents = build_accent_mesh(fills)
 
     body_path = OUTPUT_DIR / "wyndor_body.stl"
     accents_path = OUTPUT_DIR / "wyndor_accents.stl"
@@ -485,6 +579,7 @@ def main() -> None:
     size = bounds[1] - bounds[0]
     print(f"\nBody dimensions (mm): X={size[0]:.1f}, Y={size[1]:.1f}, Z={size[2]:.1f}")
     print(f"Contour levels included: {CONTOUR_LEVELS}")
+    print(f"Inset depths: grooves={GROOVE_DEPTH} mm, labels={LABEL_INSET_DEPTH} mm")
     print(f"\nExported:\n  {body_path}\n  {accents_path}")
 
 
