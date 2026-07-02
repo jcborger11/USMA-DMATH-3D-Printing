@@ -1,0 +1,191 @@
+   \documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{wrapfig} % used to wrap text around figures
+\usepackage{fullpage}  % makes wide margin
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{enumerate}
+\usepackage[shortlabels]{enumitem}
+\usepackage{verbatim}
+\usepackage{xspace}  % need this for dynamic space after \newcommand's
+\usepackage[labelfont=bf]{caption}
+\usepackage[justification=centering]{subcaption}
+\usepackage{enumitem}  % need this for [resume] on enumerate environ
+\usepackage{harpoon}  % used for vector notation
+\usepackage{xcolor} % for colored text
+% \usepackage[dvipsnames]{xcolor} % for more color options
+% \usepackage[bottom]{footmisc}	% force footnotes to bottom of the page
+
+\newcommand{\M}{\textit{Mathematica}\xspace}
+\newcommand{\bu}[1]{\textbf{\underline{#1}}}
+\newcommand{\vect}[1]{\ensuremath{\mathbf{#1}}}
+\newcommand{\proj}[2]{\text{\textup{proj}}_{\mathbf{#2}} {\mathbf{#1}}}
+\newcommand{\norm}[1]{\ensuremath{\vert \mathbf{#1} \vert }}
+
+% make block paragraphshttps://www.overleaf.com/project/61c345e72a5ebbeadcae85db
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{10pt}
+
+% fixes left quotation marks
+\usepackage [english]{babel}
+\usepackage [autostyle, english = american]{csquotes}
+\MakeOuterQuote{"}
+
+
+%%%%%%%%%%%%%
+% HEADER
+%%%%%%%%%%%%%
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\headheight 25pt
+\headsep .25in
+%\chead{}
+\lhead{\bf MA255 Spring 2026 Capstone Project \#3}
+\rhead{\bf 20 Points - Due 17MAR26 }
+%\cfoot{}
+\topmargin=-.5in
+\textheight=9in
+
+\newif\ifshowsolutions
+\showsolutionstrue
+\showsolutionsfalse
+
+
+
+\begin{document}
+
+\pagenumbering{arabic}
+
+%\begin{center} 
+%\Large\bf MA255 Spring 2026\\ 
+%Capstone Project \#1
+%\end{center}
+
+%%%%%%%%%%
+% PROJECT
+%%%%%%%%%%
+%Scenario Inspiration: https://www.youtube.com/watch?v=Zgw7zDZDZKs
+
+\section*{In Class Assignment Part I - Setting Up Integrals}
+\vspace{-4mm}
+Group Member Names : 
+
+\bigskip\hrule
+
+% \Large 
+
+\vspace{-6mm}
+
+\section*{A. Yellow }
+\vspace{-4mm}
+For the yellow solid, in the orientation pictured below, write the integral that finds the mass of the solid, given that the mass density function of the solid is $\rho(x,y)=x^2+y^2$. Fully set up the integral both in rectangular coordinates and in cylindrical coordinates. Draw the shadow of the solid on the axes provided. 
+The surfaces bounding the solid are $y=x$,   $y=-x$,   $z=y$,  and $x^2+y^2=9$.
+
+
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=.5\linewidth]{figures/Stadium Flat.png}
+
+\begin{center}
+{\Large
+    \underline{\textbf{Rectangular Coordinates}}}
+\end{center}
+
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+
+\vspace{-50mm}
+\centering
+\includegraphics[width=.8\linewidth]{figures/Shadow Region.png}
+\vspace{-6mm}
+
+
+\begin{center}
+    {\Large
+    \underline{\textbf{Cylindrical Coordinates}}}
+\end{center}
+
+
+
+
+\end{minipage}
+
+\vspace{14mm}
+
+\hline 
+\section*{B. Purple}
+
+For the purple solid, in the orientation pictured below, fully set up the triple integral that finds the volume of the solid in cylindrical coordinates and in spherical coordinates. Draw the shadow of the solid on the axes provided. Note that the shadow region only applies to the cylindrical coordinates. Assume that the sphere surface has radius $\sqrt{2}$.
+
+
+\begin{minipage}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=.59\linewidth]{figures/Pink Shape.png}
+
+\begin{center}
+{\Large
+    \underline{\textbf{Cylindrical Coordinates}}}
+\end{center}
+
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+
+\vspace{-50mm}
+\centering
+\includegraphics[width=.8\linewidth]{figures/Shadow Region.png}
+\vspace{-6mm}
+
+
+\begin{center}
+    {\Large
+    \underline{\textbf{Spherical Coordinates}}}
+\end{center}
+
+
+
+
+\end{minipage}
+
+
+\pagebreak
+
+
+
+\section*{In Class Assignment Part II - Matching Solids to Their Integrals}
+
+\begin{enumerate}
+    \item Identify the coordinate system used for each integral. 
+    \item If the integral is cartesian or cylindrical, draw the shadow region.
+    \item Match the 3D solid with the integral that computes it's volume. Note that radius values are not to scale.
+\end{enumerate}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Integral} & \textbf{Coordinate System} & \textbf{Shadow Region} & \textbf{Color of the Solid} \\
+\hline
+1. $\displaystyle \int_0^{2\pi} \int_3^5 \int_0^{\sqrt{25-r^2}} r \, dzdrd\theta $ & & & \\[20pt]
+\hline
+2. $\displaystyle \int_{-4}^4 \int_0^{\sqrt{16-x^2}}\int_0^y 1 \, dzdydx$ & & & \\[20pt]
+\hline
+%3. $\displaystyle \int_0^{\frac{\pi}{2}} \int_{\frac{\pi}{4}}^{\frac{5\pi}{4}} \int_3^5 \rho ^2 \, \sin \phi \, d\rho d\theta d\phi$ & & & \\[20pt]
+%\hline
+3. $\displaystyle \int_{\frac{-\pi}{2}}^{\frac{\pi}{2}} \int_0^5 \int _{-5}^{-r} r \, dzdrd\theta$ & & & \\[20pt]
+\hline
+4. $\displaystyle \int_0^4 \int_{-\sqrt{16-y^2}}^{\sqrt{16-y^2}} y\, dxdy$ & & & \\[20pt]
+\hline
+5. $\displaystyle \int_{\frac{\pi}{4}}^{\frac{\pi}{2}} \int_0^{2\pi} \int _0^4 \rho^2 \sin \phi \, d\rho d\theta d\phi$  & & & \\[20pt]
+\hline
+6. $\displaystyle \int_0^{\frac{\pi}{4}} \int_{\pi}^{2\pi} \int_0^{\sqrt{2}} \rho^2 \sin \phi \, d\rho d\theta d\phi$ & & & \\[20pt]
+\hline
+%$\displaystyle \int_{\frac{\pi}{2}^{\frac{3\pi}{2}}} \int_0^5 5r \, drd\theta - \int_{\frac{\pi}{2}}^{\frac{3\pi}{2}} \int_0^5 r^2 \, drd\theta $ & & & \\[20pt]
+%\hline
+%8. $\displaystyle \int_{-1}^1 \int_{-1\sqrt{1-x^2}} \int_{\sqrt{x^2+y^2}}^{\sqrt{2-x^2-y^2}} 1 \, dzdydx$ & & & \\[20pt]
+%\hline
+7. $\displaystyle \int_{\frac{\pi}{4}}^{\frac{3\pi}{4}} \int_0^{\pi} \int_3^5 \rho^2 \sin \phi \, d\phi d\theta d\phi$ & & & \\[20pt]
+\hline
+\end{tabular}
+\end{center}
+
+\end{document}
