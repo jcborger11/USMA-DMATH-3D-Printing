@@ -161,7 +161,7 @@ footer_ui <- function() {
       href = form_url,
       target = "_blank",
       rel = "noopener noreferrer",
-      "Can't find what you're looking for? Request a new print"
+      "Can't find what you're looking for? Request a new print."
     )
   )
 }
