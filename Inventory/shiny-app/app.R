@@ -87,15 +87,27 @@ null_or <- function(x, fallback = "") {
 
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
+app_css <- function() {
+  css_paths <- c(
+    file.path("www", "styles.css"),
+    file.path("shiny-app", "www", "styles.css"),
+    file.path(app_root, "shiny-app", "www", "styles.css")
+  )
+  css_path <- css_paths[file.exists(css_paths)][1]
+  if (is.na(css_path)) {
+    warning("Could not find styles.css")
+    return(NULL)
+  }
+  includeCSS(css_path)
+}
+
 home_grid_ui <- function() {
   cards <- lapply(items, function(item) {
     div(
       class = "inventory-card",
       actionButton(
         inputId = paste0("select_", item$id),
-        label = NULL,
-        class = "inventory-card-button",
-        div(
+        label = div(
           class = "inventory-card-inner",
           tags$img(
             src = paste0("photos/", item$id, ".png"),
@@ -106,15 +118,19 @@ home_grid_ui <- function() {
             class = "inventory-card-title",
             sprintf("%s (%d)", item$title, item$count)
           )
-        )
+        ),
+        class = "inventory-card-button"
       )
     )
   })
 
   tagList(
-    div(class = "page-header", h1(inventory$app_title)),
-    div(class = "inventory-grid", cards),
-    footer_ui()
+    div(
+      class = "inventory-page",
+      div(class = "page-header", h1(inventory$app_title)),
+      div(class = "inventory-grid", cards),
+      footer_ui()
+    )
   )
 }
 
@@ -260,7 +276,7 @@ detail_ui <- function(item, subfolder = NULL) {
 
 ui <- page_fluid(
   theme = bs_theme(version = 5, bootswatch = "flatly"),
-  tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
+  tags$head(app_css()),
   uiOutput("main_ui")
 )
 
