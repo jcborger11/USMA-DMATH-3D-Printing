@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -64,8 +65,9 @@ CONTOUR_LABEL_OVERRIDES: dict[float, dict[str, float]] = {
 }
 
 # Per-edge wall label placement (defaults: h_fraction=0.5, v_fraction=WALL_LABEL_V_FRACTION).
+MATCH_DIAGONAL_HEIGHT_LABELS = {"x₁ ≤ 4", "x₂ ≤ 6", "x₁ ≥ 0"}
 WALL_LABEL_OVERRIDES: dict[str, dict[str, float]] = {
-    "x₁ ≥ 0": {"v_fraction": 0.26},
+    "x₁ ≥ 0": {"v_fraction": 0.26, "h_fraction": 0.5},
     "x₂ ≥ 0": {
         "h_fraction": 0.72,
         "v_fraction": 0.40,
@@ -75,6 +77,9 @@ WALL_LABEL_OVERRIDES: dict[str, dict[str, float]] = {
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 BOOLEAN_ENGINE = "manifold"
+
+# Single-filament print: engraved cavities in body only, no accent STL.
+BODY_ONLY = True
 
 
 def objective(x1: float, x2: float) -> float:
@@ -152,10 +157,13 @@ def flip_text_180(
 
 def wall_label_settings(label: str) -> dict[str, float]:
     overrides = WALL_LABEL_OVERRIDES.get(label, {})
+    max_height_mm = overrides.get("max_height_mm", -1.0)
+    if max_height_mm < 0 and label in MATCH_DIAGONAL_HEIGHT_LABELS:
+        max_height_mm = reference_wall_label_max_height_mm()
     return {
         "h_fraction": overrides.get("h_fraction", 0.5),
         "v_fraction": overrides.get("v_fraction", WALL_LABEL_V_FRACTION),
-        "max_height_mm": overrides.get("max_height_mm", -1.0),
+        "max_height_mm": max_height_mm,
     }
 
 
@@ -370,6 +378,13 @@ def contour_label_offset_lp(
     return base_lp + perp * offset_lp
 
 
+def reference_wall_label_max_height_mm() -> float:
+    """Max text height for the diagonal constraint label (reference for other walls)."""
+    p0, p1 = FEASIBLE_VERTICES[2], FEASIBLE_VERTICES[3]
+    _, max_h = wall_label_max_size(p0, p1, "3x₁ + 2x₂ ≤ 18")
+    return max_h
+
+
 def wall_label_transform(
     p0_lp: np.ndarray,
     p1_lp: np.ndarray,
@@ -441,7 +456,6 @@ def build_wall_label_pair(
     transform = wall_label_transform(p0_lp, p1_lp, label)
     max_w, max_h = wall_label_max_size(p0_lp, p1_lp, label)
 
-    fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
     cavity_local = fit_text_mesh(
         create_text_volume(
             label,
@@ -451,7 +465,11 @@ def build_wall_label_pair(
         max_w,
         max_h,
     )
-    return apply_transform(cavity_local, transform), apply_transform(fill_local, transform)
+    cavity = apply_transform(cavity_local, transform)
+    if BODY_ONLY:
+        return cavity, trimesh.Trimesh()
+    fill_local = fit_text_mesh(create_text_volume(label, LABEL_INSET_DEPTH), max_w, max_h)
+    return cavity, apply_transform(fill_local, transform)
 
 
 def contour_label_transform(
@@ -497,15 +515,6 @@ def build_contour_label_pair(
         return empty, empty
 
     max_w, max_h = contour_label_max_size(p0_lp, p1_lp)
-    fill_local = fit_text_mesh(
-        create_text_volume(
-            label,
-            CONTOUR_LABEL_INSET_DEPTH,
-            font_size=CONTOUR_LABEL_FONT_SIZE,
-        ),
-        max_w,
-        max_h,
-    )
     cavity_local = fit_text_mesh(
         create_text_volume(
             label,
@@ -516,7 +525,19 @@ def build_contour_label_pair(
         max_w,
         max_h,
     )
-    return apply_transform(cavity_local, transform), apply_transform(fill_local, transform)
+    cavity = apply_transform(cavity_local, transform)
+    if BODY_ONLY:
+        return cavity, trimesh.Trimesh()
+    fill_local = fit_text_mesh(
+        create_text_volume(
+            label,
+            CONTOUR_LABEL_INSET_DEPTH,
+            font_size=CONTOUR_LABEL_FONT_SIZE,
+        ),
+        max_w,
+        max_h,
+    )
+    return cavity, apply_transform(fill_local, transform)
 
 
 def build_contour_groove_mesh(p0_lp: np.ndarray, p1_lp: np.ndarray, depth: float) -> trimesh.Trimesh:
@@ -579,6 +600,8 @@ def build_contour_groove_pair(
     p1_lp: np.ndarray,
 ) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
     cavity = build_contour_groove_mesh(p0_lp, p1_lp, GROOVE_DEPTH + INSET_CLEARANCE)
+    if BODY_ONLY:
+        return cavity, trimesh.Trimesh()
     fill = build_contour_groove_mesh(p0_lp, p1_lp, GROOVE_DEPTH)
     return cavity, fill
 
@@ -592,11 +615,13 @@ def collect_inset_parts() -> tuple[list[trimesh.Trimesh], list[trimesh.Trimesh]]
             cavity, fill = build_contour_groove_pair(p0, p1)
             if len(cavity.vertices) > 0:
                 cavities.append(cavity)
-                fills.append(fill)
+                if not BODY_ONLY and len(fill.vertices) > 0:
+                    fills.append(fill)
             cavity, fill = build_contour_label_pair(level, p0, p1)
             if len(cavity.vertices) > 0:
                 cavities.append(cavity)
-                fills.append(fill)
+                if not BODY_ONLY and len(fill.vertices) > 0:
+                    fills.append(fill)
 
     n = len(FEASIBLE_VERTICES)
     for i in range(n):
@@ -604,7 +629,8 @@ def collect_inset_parts() -> tuple[list[trimesh.Trimesh], list[trimesh.Trimesh]]
         p1 = FEASIBLE_VERTICES[(i + 1) % n]
         cavity, fill = build_wall_label_pair(p0, p1, EDGE_CONSTRAINT_LABELS[i])
         cavities.append(cavity)
-        fills.append(fill)
+        if not BODY_ONLY and len(fill.vertices) > 0:
+            fills.append(fill)
 
     if not cavities:
         raise RuntimeError("No inset accent geometry generated.")
@@ -631,29 +657,53 @@ def validate_mesh(mesh: trimesh.Trimesh, name: str, require_watertight: bool) ->
         raise RuntimeError(f"{name} is not watertight.")
 
 
-def main() -> None:
+def launch_rotatable_preview(body: trimesh.Trimesh) -> None:
+    """Open pyglet window to inspect the generated body mesh."""
+    from preview import show_interactive
+
+    print("\nOpening rotatable preview (drag to rotate, scroll to zoom)...")
+    show_interactive(body, None)
+
+
+def main(show_preview: bool = True) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     cavities, fills = collect_inset_parts()
     body = build_body_mesh(cavities)
-    accents = build_accent_mesh(fills)
 
     body_path = OUTPUT_DIR / "wyndor_body.stl"
-    accents_path = OUTPUT_DIR / "wyndor_accents.stl"
-
     body.export(body_path)
-    accents.export(accents_path)
-
     validate_mesh(body, "wyndor_body.stl", require_watertight=True)
-    validate_mesh(accents, "wyndor_accents.stl", require_watertight=False)
+
+    exported = [body_path]
+    if BODY_ONLY:
+        print("\nBody-only mode: skipping wyndor_accents.stl")
+    else:
+        accents = build_accent_mesh(fills)
+        accents_path = OUTPUT_DIR / "wyndor_accents.stl"
+        accents.export(accents_path)
+        validate_mesh(accents, "wyndor_accents.stl", require_watertight=False)
+        exported.append(accents_path)
 
     bounds = body.bounds
     size = bounds[1] - bounds[0]
     print(f"\nBody dimensions (mm): X={size[0]:.1f}, Y={size[1]:.1f}, Z={size[2]:.1f}")
     print(f"Contour levels included: {CONTOUR_LEVELS}")
     print(f"Inset depths: grooves={GROOVE_DEPTH} mm, wall labels={LABEL_INSET_DEPTH} mm, contour labels={CONTOUR_LABEL_INSET_DEPTH} mm")
-    print(f"\nExported:\n  {body_path}\n  {accents_path}")
+    print("\nExported:")
+    for path in exported:
+        print(f"  {path}")
+
+    if show_preview:
+        launch_rotatable_preview(body)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Generate Wyndor LP STL files.")
+    parser.add_argument(
+        "--no-preview",
+        action="store_true",
+        help="Skip opening the rotatable pyglet preview after export.",
+    )
+    args = parser.parse_args()
+    main(show_preview=not args.no_preview)
