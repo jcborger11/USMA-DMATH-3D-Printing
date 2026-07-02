@@ -28,17 +28,18 @@ The app loads data from the parent `Inventory/` folder (`inventory.yml`, `Photos
 
 ## Folder layout
 
+## Item folder layout
+
+Each item can have:
+
+- **Files at the item root** — shown directly on the detail page (e.g. PDFs, images)
+- **`STLs and GCODEs/`** — click the folder on the detail page to browse STL, gcode, and 3mf files
+
 ```
-Inventory/
-├── inventory.yml          # titles, counts, descriptions, Forms URL
-├── Photos/                # one .png per item (filename = item id)
-├── items/
-│   └── <item-id>/
-│       └── STLs and GCODEs/   # drop up to 10 downloadable files here
-└── shiny-app/
-    ├── app.R
-    └── www/
-        └── styles.css
+Inventory/items/<item-id>/
+├── (optional files at item root)
+└── STLs and GCODEs/
+    └── (print files)
 ```
 
 **Item IDs** (must match photo filenames):
@@ -81,9 +82,11 @@ Restart or refresh the app after editing.
 
 ## Add download files
 
-1. Drop files into `Inventory/items/<item-id>/STLs and GCODEs/` (recommended max 10 per item).
-2. Refresh the app — files appear automatically on that item's detail page.
-3. Hidden files (names starting with `.`) are ignored.
+**Print files (STL, gcode, 3mf):** drop into `Inventory/items/<item-id>/STLs and GCODEs/`
+
+**Other item files (PDF, images, etc.):** drop directly into `Inventory/items/<item-id>/`
+
+Refresh the app after adding files. Hidden files (names starting with `.`) are ignored.
 
 ## Microsoft Forms link
 

@@ -2,6 +2,8 @@ library(shiny)
 library(bslib)
 library(yaml)
 
+STLS_GCODE_FOLDER <- "STLs and GCODEs"
+
 resolve_app_root <- function() {
   for (candidate in c(".", "..")) {
     manifest <- file.path(candidate, "inventory.yml")
@@ -20,13 +22,42 @@ items <- inventory$items
 addResourcePath("photos", file.path(app_root, "Photos"))
 addResourcePath("item-files", file.path(app_root, "items"))
 
-list_item_files <- function(item_id) {
-  files_dir <- file.path(app_root, "items", item_id, "STLs and GCODEs")
-  if (!dir.exists(files_dir)) {
+list_visible_files <- function(dir_path) {
+  if (!dir.exists(dir_path)) {
     return(character())
   }
-  files <- list.files(files_dir, full.names = TRUE, no.. = TRUE)
-  files[!grepl("^\\.", basename(files))]
+  entries <- list.files(dir_path, full.names = TRUE, no.. = TRUE)
+  entries[!file.info(entries)$isdir & !grepl("^\\.", basename(entries))]
+}
+
+list_item_root_files <- function(item_id) {
+  list_visible_files(file.path(app_root, "items", item_id))
+}
+
+list_stls_gcode_files <- function(item_id) {
+  list_visible_files(file.path(app_root, "items", item_id, STLS_GCODE_FOLDER))
+}
+
+stls_gcode_folder_exists <- function(item_id) {
+  dir.exists(file.path(app_root, "items", item_id, STLS_GCODE_FOLDER))
+}
+
+encode_item_path <- function(relative_path) {
+  segments <- strsplit(relative_path, "/", fixed = TRUE)[[1]]
+  paste(
+    vapply(segments, utils::URLencode, character(1), reserved = TRUE),
+    collapse = "/"
+  )
+}
+
+file_download_link <- function(item_id, relative_path, label = NULL) {
+  file_name <- basename(relative_path)
+  tags$a(
+    class = "btn btn-outline-primary download-link",
+    href = paste0("item-files/", item_id, "/", encode_item_path(relative_path)),
+    download = file_name,
+    label %||% file_name
+  )
 }
 
 format_count <- function(item) {
@@ -53,6 +84,8 @@ get_item <- function(item_id) {
 null_or <- function(x, fallback = "") {
   if (is.null(x) || length(x) == 0) fallback else x
 }
+
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
 home_grid_ui <- function() {
   cards <- lapply(items, function(item) {
@@ -107,46 +140,99 @@ footer_ui <- function() {
   )
 }
 
-detail_ui <- function(item) {
-  files <- list_item_files(item$id)
-  description_block <- if (nzchar(trimws(null_or(item$description, "")))) {
-    div(class = "detail-description", item$description)
+folder_button <- function(folder_name) {
+  actionButton(
+    inputId = "open_stls_gcode_folder",
+    label = NULL,
+    class = "folder-button",
+    div(
+      class = "folder-button-inner",
+      tags$span(class = "folder-icon", "📁"),
+      tags$span(class = "folder-name", folder_name)
+    )
+  )
+}
+
+file_list_ui <- function(item_id, files, path_prefix = "") {
+  if (length(files) == 0) {
+    return(NULL)
   }
 
-  downloads_block <- if (length(files) == 0) {
-    div(class = "downloads-empty", "No files uploaded yet.")
-  } else {
-    if (length(files) > 10) {
-      warning(
-        "Item ", item$id, " has ", length(files),
-        " files (recommended max is 10)."
-      )
-    }
-    tagList(
-      h3("Downloads"),
-      div(
-        class = "download-list",
-        lapply(seq_along(files), function(i) {
-          file_name <- basename(files[i])
-          tags$a(
-            class = "btn btn-outline-primary download-link",
-            href = paste0(
-              "item-files/", item$id, "/STLs and GCODEs/",
-              utils::URLencode(file_name, reserved = TRUE)
-            ),
-            download = file_name,
-            file_name
-          )
-        })
-      )
+  div(
+    class = "download-list",
+    lapply(files, function(file_path) {
+      relative_path <- if (nzchar(path_prefix)) {
+        file.path(path_prefix, basename(file_path))
+      } else {
+        basename(file_path)
+      }
+      file_download_link(item_id, relative_path)
+    })
+  )
+}
+
+item_root_files_ui <- function(item) {
+  root_files <- list_item_root_files(item$id)
+  has_subfolder <- stls_gcode_folder_exists(item$id)
+
+  root_links <- file_list_ui(item$id, root_files)
+  folder_block <- if (has_subfolder) folder_button(STLS_GCODE_FOLDER) else NULL
+
+  if (is.null(root_links) && is.null(folder_block)) {
+    return(div(class = "downloads-empty", "No files uploaded yet."))
+  }
+
+  tagList(
+    h3("Files"),
+    root_links,
+    folder_block
+  )
+}
+
+subfolder_files_ui <- function(item) {
+  files <- list_stls_gcode_files(item$id)
+
+  if (length(files) == 0) {
+    return(div(class = "downloads-empty", "No files in this folder yet."))
+  }
+
+  if (length(files) > 10) {
+    warning(
+      "Item ", item$id, " has ", length(files),
+      " files in ", STLS_GCODE_FOLDER, " (recommended max is 10)."
     )
   }
 
   tagList(
-    div(
-      class = "detail-header",
-      actionButton("back_home", "Back", class = "btn-secondary back-button")
-    ),
+    h3(STLS_GCODE_FOLDER),
+    file_list_ui(item$id, files, path_prefix = STLS_GCODE_FOLDER)
+  )
+}
+
+detail_ui <- function(item, subfolder = NULL) {
+  description_block <- if (nzchar(trimws(null_or(item$description, "")))) {
+    div(class = "detail-description", item$description)
+  }
+
+  in_subfolder <- identical(subfolder, STLS_GCODE_FOLDER)
+
+  header_buttons <- if (in_subfolder) {
+    tagList(
+      actionButton("back_item_root", "Back to item", class = "btn-secondary back-button"),
+      div(class = "breadcrumb", paste(item$title, "›", STLS_GCODE_FOLDER))
+    )
+  } else {
+    actionButton("back_home", "Back", class = "btn-secondary back-button")
+  }
+
+  files_block <- if (in_subfolder) {
+    subfolder_files_ui(item)
+  } else {
+    item_root_files_ui(item)
+  }
+
+  tagList(
+    div(class = "detail-header", header_buttons),
     div(
       class = "detail-content",
       div(
@@ -166,7 +252,7 @@ detail_ui <- function(item) {
           format_count(item)
         ),
         description_block,
-        div(class = "detail-downloads", downloads_block)
+        div(class = "detail-downloads", files_block)
       )
     )
   )
@@ -180,23 +266,34 @@ ui <- page_fluid(
 
 server <- function(input, output, session) {
   selected_item <- reactiveVal(NULL)
+  selected_subfolder <- reactiveVal(NULL)
 
   output$main_ui <- renderUI({
     item_id <- selected_item()
     if (is.null(item_id)) {
       home_grid_ui()
     } else {
-      detail_ui(get_item(item_id))
+      detail_ui(get_item(item_id), subfolder = selected_subfolder())
     }
   })
 
   observeEvent(input$back_home, {
     selected_item(NULL)
+    selected_subfolder(NULL)
+  })
+
+  observeEvent(input$back_item_root, {
+    selected_subfolder(NULL)
+  })
+
+  observeEvent(input$open_stls_gcode_folder, {
+    selected_subfolder(STLS_GCODE_FOLDER)
   })
 
   lapply(items, function(item) {
     observeEvent(input[[paste0("select_", item$id)]], {
       selected_item(item$id)
+      selected_subfolder(NULL)
     }, ignoreInit = TRUE)
   })
 }

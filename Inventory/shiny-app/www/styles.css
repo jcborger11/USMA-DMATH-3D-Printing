@@ -145,6 +145,52 @@ body {
   font-style: italic;
 }
 
+.breadcrumb {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.folder-button {
+  width: 100%;
+  max-width: 320px;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  border-radius: 0.5rem;
+  padding: 0;
+  margin-top: 0.75rem;
+  text-align: left;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.folder-button:hover {
+  border-color: #2c3e50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.folder-button:focus {
+  outline: 2px solid #2c3e50;
+  outline-offset: 2px;
+}
+
+.folder-button-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.folder-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.folder-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
 @media (max-width: 900px) {
   .inventory-grid {
     grid-template-columns: repeat(2, 1fr);
