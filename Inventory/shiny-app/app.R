@@ -27,7 +27,17 @@ list_visible_files <- function(dir_path) {
     return(character())
   }
   entries <- list.files(dir_path, full.names = TRUE, no.. = TRUE)
-  entries[!file.info(entries)$isdir & !grepl("^\\.", basename(entries))]
+  entries <- entries[!file.info(entries)$isdir & !grepl("^\\.", basename(entries))]
+  sort_download_files(entries)
+}
+
+sort_download_files <- function(files) {
+  if (length(files) == 0) {
+    return(files)
+  }
+  names <- basename(files)
+  is_pdf <- grepl("\\.pdf$", names, ignore.case = TRUE)
+  files[order(!is_pdf, tolower(names))]
 }
 
 list_item_root_files <- function(item_id) {
