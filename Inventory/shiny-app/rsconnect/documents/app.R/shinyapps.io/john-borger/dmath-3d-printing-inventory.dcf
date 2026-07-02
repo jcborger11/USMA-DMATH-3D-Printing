@@ -1,0 +1,10 @@
+name: dmath-3d-printing-inventory
+title:
+username: john-borger
+account: john-borger
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17576488
+bundleId: 12212706
+url: https://john-borger.shinyapps.io/dmath-3d-printing-inventory/
+version: 1
