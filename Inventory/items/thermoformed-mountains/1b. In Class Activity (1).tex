@@ -1,0 +1,158 @@
+   \documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{wrapfig} % used to wrap text around figures
+\usepackage{fullpage}  % makes wide margin
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{enumerate}
+\usepackage[shortlabels]{enumitem}
+\usepackage{verbatim}
+\usepackage{xspace}  % need this for dynamic space after \newcommand's
+\usepackage[labelfont=bf]{caption}
+\usepackage[justification=centering]{subcaption}
+\usepackage{enumitem}  % need this for [resume] on enumerate environ
+\usepackage{harpoon}  % used for vector notation
+\usepackage{xcolor} % for colored text
+% \usepackage[dvipsnames]{xcolor} % for more color options
+% \usepackage[bottom]{footmisc}	% force footnotes to bottom of the page
+
+\newcommand{\M}{\textit{Mathematica}\xspace}
+\newcommand{\bu}[1]{\textbf{\underline{#1}}}
+\newcommand{\vect}[1]{\ensuremath{\mathbf{#1}}}
+\newcommand{\proj}[2]{\text{\textup{proj}}_{\mathbf{#2}} {\mathbf{#1}}}
+\newcommand{\norm}[1]{\ensuremath{\vert \mathbf{#1} \vert }}
+
+% make block paragraphshttps://www.overleaf.com/project/61c345e72a5ebbeadcae85db
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{10pt}
+
+% fixes left quotation marks
+\usepackage [english]{babel}
+\usepackage [autostyle, english = american]{csquotes}
+\MakeOuterQuote{"}
+
+
+%%%%%%%%%%%%%
+% HEADER
+%%%%%%%%%%%%%
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\headheight 25pt
+\headsep .25in
+%\chead{}
+\lhead{\bf MA255 Spring 2026 Capstone Project \#2}
+\rhead{\bf 20 Points - Due 17FEB26 }
+%\cfoot{}
+\topmargin=-.5in
+\textheight=9in
+
+\newif\ifshowsolutions
+\showsolutionstrue
+\showsolutionsfalse
+
+
+
+\begin{document}
+
+\pagenumbering{arabic}
+
+%\begin{center} 
+%\Large\bf MA255 Spring 2026\\ 
+%Capstone Project \#1
+%\end{center}
+
+%%%%%%%%%%
+% PROJECT
+%%%%%%%%%%
+%Scenario Inspiration: https://www.youtube.com/watch?v=Zgw7zDZDZKs
+
+\section*{In Class Assignment Part I - Partial Derivatives}
+\vspace{-4mm}
+Group Member Names : 
+
+\bigskip\hrule
+
+% \Large 
+
+\vspace{-6mm}
+
+\section*{A. Partial Derivatives on a Surface}
+\vspace{-4mm}
+Use dry erase markers to label the following on your clear plastic surface.
+\vspace{-4mm}
+\begin{enumerate}
+    \item Determine an orientation for the surface. Which way is positive $x,y$ and $z$?
+    \item Label a point, C, where $f_x$ is a small positive number.
+    \item Label a point, D, where $f_y$ is a large negative number.
+    \item Label a point, E, where $f_x=0$ and $f_y = 0$.
+    \item Label a point, F, where $f_x=0$ and $f_y \neq 0$.
+    \item Label a point, G, where $f_{xx} > 0$ and $f_{yy} >0$.
+    \item Label a saddle point, H.
+\end{enumerate}
+\hline 
+\vspace{-6mm}
+\section*{B. Partial Derivatives on a Contour Map}
+\vspace{-4mm}
+Using \textbf{Figure 1} and \textbf{Figure 2} below, complete the following.
+\begin{enumerate}
+    \setcounter{enumi}{7}
+    \item For which points (T,P,R,A,B) is $f_x$ positive?
+    \vfill 
+    \item What is the sign of $f_{xx}(P)$? Justify your answer.
+    \vfill 
+    \item Which is larger, $f_x(P)$ or $f_x(R)$? Justify your answer.
+    \vfill 
+    \item Mark a new point $S$ on \textbf{Figure 2} such that $f_y(S)=0$
+\end{enumerate}
+
+\vfill 
+
+\begin{figure}[h!]
+  \centering
+  \begin{minipage}[b]{0.3\textwidth}
+    \includegraphics[width= \textwidth]{AY26 Files/06 Figures/CP2 Contour1.png}
+    \caption{}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.3\textwidth}
+    \includegraphics[width= \textwidth]{AY26 Files/06 Figures/CP2 Contour2.png}
+    \caption{}
+  \end{minipage}
+\end{figure}
+
+\begin{center}
+    \textbf{Show you instructor your work before beginning Part 2.}
+\end{center}
+
+
+
+\pagebreak
+
+
+\section*{In Class Assignment Part II - Lagrange Multipliers}
+\vspace{-6mm}
+The below contour map shows the level curves of the function $z=f(x,y)$ which represents the elevation of a mountain range. The blue circle, $g(x,y)=c$, is a hiking trail. The trail reaches a maximum value at Point J. %Using your knowledge of gradients and Lagrange multipliers, estimate and label the points (A,B,C,D,E,F) on the hiking trail that represent local minimums and local maximums. 
+\vspace{-6mm}
+
+\begin{center}
+    
+
+\includegraphics[width=109.823mm]{AY26 Files/06 Figures/Lagrange Conour Map Crop v5.png}
+\end{center}
+
+\begin{enumerate}
+    \setcounter{enumi}{11}
+    \item Draw $\Vec{\nabla} g(J)$ and $\vec{\nabla} f(J)$. (Estimate the magnitudes.)
+    \item Estimate and label the other $5$ critical points on the hiking trail $g(x,y)$.
+    \item Draw the path of the hiking trail on your clear surface. \textit{Hint : Align your clear surface to the contour map. Stand above the surface and look straight down while you trace the circle.}
+    \item Use the clear plastic surface to confirm the location of your $5$ critical points. Label your points K,L,M,N,Q.
+    \item Draw estimated $\vec{\nabla} g$ and $\vec{\nabla} f$ for each of your $5$ remaining points on the contour plot.
+    \item Go to the \href{https://c3d.libretexts.org/CalcPlot3D/index.html}{CalcPlot3d} website, Explorations, Lagrange Multiplier Activity, Step 9. Adjust the blue slider on the bottom to confirm your  $\vec{\nabla} g$ and $\vec{\nabla} f$.
+\end{enumerate}
+
+%Now, orient your clear plastic surface to match the below contour plot. Trace the path of the hiking trail on your clear surface. Label the local maximums and minimums on the clear surface. \\
+
+%On the contour plot, draw $\nabla f$ and $\nabla g$ for each of the six locals minimum/maximum points. Let $f(x,y)$ be the surface and $g(x,y)$ be the hiking trail. You will have to estimate the magnitude of $\nabla f$ for each point. 
+
+\end{document}
