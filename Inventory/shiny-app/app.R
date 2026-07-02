@@ -69,7 +69,10 @@ home_grid_ui <- function() {
             alt = item$title,
             class = "inventory-card-image"
           ),
-          div(class = "inventory-card-title", item$title)
+          div(
+            class = "inventory-card-title",
+            sprintf("%s (%d)", item$title, item$count)
+          )
         )
       )
     )
