@@ -21,7 +21,7 @@ addResourcePath("photos", file.path(app_root, "Photos"))
 addResourcePath("item-files", file.path(app_root, "items"))
 
 list_item_files <- function(item_id) {
-  files_dir <- file.path(app_root, "items", item_id, "files")
+  files_dir <- file.path(app_root, "items", item_id, "STLs and GCODEs")
   if (!dir.exists(files_dir)) {
     return(character())
   }
@@ -131,7 +131,7 @@ detail_ui <- function(item) {
           tags$a(
             class = "btn btn-outline-primary download-link",
             href = paste0(
-              "item-files/", item$id, "/files/",
+              "item-files/", item$id, "/STLs and GCODEs/",
               utils::URLencode(file_name, reserved = TRUE)
             ),
             download = file_name,

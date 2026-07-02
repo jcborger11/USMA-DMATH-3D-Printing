@@ -34,7 +34,7 @@ Inventory/
 ├── Photos/                # one .png per item (filename = item id)
 ├── items/
 │   └── <item-id>/
-│       └── files/         # drop up to 10 downloadable files here
+│       └── STLs and GCODEs/   # drop up to 10 downloadable files here
 └── shiny-app/
     ├── app.R
     └── www/
@@ -81,7 +81,7 @@ Restart or refresh the app after editing.
 
 ## Add download files
 
-1. Drop files into `Inventory/items/<item-id>/files/` (recommended max 10 per item).
+1. Drop files into `Inventory/items/<item-id>/STLs and GCODEs/` (recommended max 10 per item).
 2. Refresh the app — files appear automatically on that item's detail page.
 3. Hidden files (names starting with `.`) are ignored.
 
