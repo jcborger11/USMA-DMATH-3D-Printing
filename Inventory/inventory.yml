@@ -1,0 +1,43 @@
+app_title: "DMath 3D Printing Inventory"
+request_form_url: "https://forms.office.com/Pages/ResponsePage.aspx?id=EYj_mRc1qUC_EEXqCjIfC7Xcx9UgtSNPmppPACZgh19UNkVXOE9GU0c5QVBMVEdSWTAwM0NYRlozVi4u"
+
+items:
+  - id: student-medium-3d-integral-shape
+    title: "Student Medium 3D Integral Shape"
+    count: 15
+    variants:
+      - label: "Black"
+        count: 10
+      - label: "Grey"
+        count: 5
+    description: ""
+
+  - id: thermoformed-mountains
+    title: "Thermoformed Mountains"
+    count: 31
+    description: ""
+
+  - id: surface-of-revolution-sphere-kit
+    title: "Surface of Revolution Sphere Kit"
+    count: 22
+    description: ""
+
+  - id: wyndor-feasability-region
+    title: "Wyndor Feasability Region"
+    count: 6
+    description: ""
+
+  - id: black-and-gold-mountains
+    title: "Black and Gold Mountains"
+    count: 11
+    description: ""
+
+  - id: student-triple-integral-activity-kit
+    title: "Student Triple Integral Activity Kit"
+    count: 30
+    description: ""
+
+  - id: instructor-large-yellow-3d-shape
+    title: "Instructor Large Yellow 3D Shape"
+    count: 2
+    description: ""
