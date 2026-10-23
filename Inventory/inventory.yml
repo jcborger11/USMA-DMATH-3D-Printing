@@ -46,3 +46,8 @@ items:
     title: "1st Octant MA204 WPR AY26-2"
     count: 56
     description: ""
+
+  - id: klein-bottle-trophy
+    title: "Klein Bottle Trophy"
+    count: 0
+    description: "Special gift. Keep the on-hand count at 0. Black base, white towers, gold Klein bottle. Set the name in Bambu Studio before slicing."

@@ -54,6 +54,7 @@ Inventory/items/<item-id>/
 | `student-triple-integral-activity-kit` | Student Triple Integral Activity Kit |
 | `instructor-large-yellow-3d-shape` | Instructor Large Yellow 3D Shape |
 | `1st-octant-ma204-wpr-ay26-2` | 1st Octant MA204 WPR AY26-2 |
+| `klein-bottle-trophy` | Klein Bottle Trophy |
 
 ## Update inventory counts
 
