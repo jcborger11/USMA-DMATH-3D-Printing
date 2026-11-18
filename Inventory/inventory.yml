@@ -51,3 +51,8 @@ items:
     title: "Klein Bottle Trophy"
     count: 0
     description: "Special gift. Keep the on-hand count at 0. Black base, white towers, gold Klein bottle. Reprint from trophy_assembly_plug.3mf. The matching gcode is the slice that printed. Set the name in Bambu Studio before slicing a new one."
+
+  - id: thanksgiving-turkey
+    title: "Thanksgiving Turkey"
+    count: 0
+    description: "Special gift. Keep the on-hand count at 0."
