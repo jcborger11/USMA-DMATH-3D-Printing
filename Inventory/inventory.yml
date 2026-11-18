@@ -59,3 +59,8 @@ items:
     title: "Thanksgiving Turkey"
     count: 0
     description: "Special Gift. Zero on-hand count."
+
+  - id: hemisphere
+    title: "Hemisphere"
+    count: 100
+    description: ""
