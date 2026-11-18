@@ -47,6 +47,16 @@ items:
     count: 56
     description: ""
 
+  - id: hemisphere
+    title: "Hemisphere MA205 WPR AY27-1"
+    count: 100
+    description: ""
+
+  - id: thanksgiving-turkey
+    title: "Thanksgiving Turkey"
+    count: 0
+    description: "Special Gift. Zero on-hand count."
+
   - id: klein-bottle-trophy
     title: "Klein Bottle Trophy"
     count: 0
@@ -54,13 +64,3 @@ items:
       Special Gift. Zero on-hand count. Black base, white towers, gold Klein bottle. Reprint from trophy_assembly_plug.3mf. The matching gcode is the slice that printed. Set the name in Bambu Studio before slicing a new one.
 
       Warning : Monitor print and ensure that the waste does not clog as it tries to emit out the back of the printer. This print requires a significant amount of color changes and will produce more waste than the receptical can handle.
-
-  - id: thanksgiving-turkey
-    title: "Thanksgiving Turkey"
-    count: 0
-    description: "Special Gift. Zero on-hand count."
-
-  - id: hemisphere
-    title: "Hemisphere MA205 WPR AY27-1"
-    count: 100
-    description: ""
