@@ -171,6 +171,14 @@ body {
   color: #495057;
 }
 
+.detail-description p {
+  margin: 0 0 0.75rem;
+}
+
+.detail-description p:last-child {
+  margin-bottom: 0;
+}
+
 .detail-downloads h3 {
   font-size: 1.15rem;
   margin-bottom: 0.75rem;

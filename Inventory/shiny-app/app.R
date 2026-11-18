@@ -237,7 +237,14 @@ subfolder_files_ui <- function(item) {
 
 detail_ui <- function(item, subfolder = NULL) {
   description_block <- if (nzchar(trimws(null_or(item$description, "")))) {
-    div(class = "detail-description", item$description)
+    paragraphs <- strsplit(trimws(item$description), "\n\\s*\n")[[1]]
+    paragraphs <- paragraphs[nzchar(trimws(paragraphs))]
+    div(
+      class = "detail-description",
+      lapply(paragraphs, function(paragraph) {
+        tags$p(trimws(paragraph))
+      })
+    )
   }
 
   in_subfolder <- identical(subfolder, STLS_GCODE_FOLDER)
