@@ -56,7 +56,7 @@ Inventory/items/<item-id>/
 | `1st-octant-ma204-wpr-ay26-2` | 1st Octant MA204 WPR AY26-2 |
 | `klein-bottle-trophy` | Klein Bottle Trophy |
 | `thanksgiving-turkey` | Thanksgiving Turkey |
-| `hemisphere` | Hemisphere |
+| `hemisphere` | Hemisphere MA205 WPR AY27-1 |
 
 ## Update inventory counts
 
